@@ -1,0 +1,4 @@
+*.sign
+*.xz
+pkg/
+src/
