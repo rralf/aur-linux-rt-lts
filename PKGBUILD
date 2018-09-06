@@ -5,30 +5,19 @@
 # Contributor: Tobias Powalowski <tpowa@archlinux.org>
 # Contributor: Thomas Baechler <thomas@archlinux.org>
 
-#pkgbase=linux               # Build stock -ARCH kernel
-pkgbase=linux-rt-lts          # Build kernel with a different name
-_srcname=linux-4.14
-_pkgver=4.14.69
-_rtpatchver=rt43
-pkgver=${_pkgver}_${_rtpatchver}
+pkgbase=linux-rt-lts-jailhouse
+pkgver=v4.14.63.rt40.jailhouse
 pkgrel=1
 arch=('x86_64')
-url="https://www.kernel.org/"
 license=('GPL2')
 makedepends=('xmlto' 'kmod' 'inetutils' 'bc' 'libelf')
 options=('!strip')
 source=(
-  "https://www.kernel.org/pub/linux/kernel/v4.x/linux-${_pkgver}.tar.xz"
-  "https://www.kernel.org/pub/linux/kernel/v4.x/linux-${_pkgver}.tar.sign"
-  "https://www.kernel.org/pub/linux/kernel/projects/rt/4.14/older/patch-${_pkgver}-${_rtpatchver}.patch.xz"
-  "https://www.kernel.org/pub/linux/kernel/projects/rt/4.14/older/patch-${_pkgver}-${_rtpatchver}.patch.sign"
+  'git+https://github.com/lfd/linux.git#branch=dev/jailhouse-enabling/4.14-rt/latest'
   'config'         # the main kernel config file
   '60-linux-rt-lts.hook'  # pacman hook for depmod
   '90-linux-rt-lts.hook'  # pacman hook for initramfs regeneration
   'linux-rt-lts.preset'   # standard config files for mkinitcpio ramdisk
-  0001-add-sysctl-to-disallow-unprivileged-CLONE_NEWUSER-by.patch
-  0006-drm-i915-edp-Only-use-the-alternate-fixed-mode-if-it.patch
-  fix-race-in-PRT-wait-for-completion-simple-wait-code_Nvidia-RT-160319.patch
 )
 validpgpkeys=(
   'ABAF11C65A2970B130ABE3C479BE3E4300411886'  # Linus Torvalds
@@ -37,41 +26,16 @@ validpgpkeys=(
   '5ED9A48FC54C0A22D1D0804CEBC26CDB5A56DE73'  # Steven Rostedt
   'E644E2F1D45FA0B2EAA02F33109F098506FF0B14'  # Thomas Gleixner
 )
-sha256sums=('61bdd5fbb0e33362d27476e7d8aade0aa1ad11ddb5959a27094c254cc03b19f0'
+sha256sums=('SKIP'
             'SKIP'
-            '9e98f582d7db7587038f500ae735adf0b26de3290ab51a9a739b74adad69e4e1'
             'SKIP'
-            '12b73ca9ec3acf9058bf922b60a8773f216cf6e774e21d42a2d09f3013e7a5d2'
-            'ae2e95db94ef7176207c690224169594d49445e04249d2499e9d2fbc117a0b21'
-            '75f99f5239e03238f88d1a834c50043ec32b1dc568f2cc291b07d04718483919'
-            'ad6344badc91ad0630caacde83f7f9b97276f80d26a20619a87952be65492c65'
-            'd8a865a11665424b21fe6be9265eb287ee6d5646261a486954ddf3a4ee87e78f'
-            'ec7342aab478af79a17ff65cf65bbd6744b0caee8f66c77a39bba61a78e6576d'
-            '85f7612edfa129210343d6a4fe4ba2a4ac3542d98b7e28c8896738e7e6541c06')
+            'SKIP'
+            'SKIP')
 
 _kernelname=${pkgbase#linux}
 
 prepare() {
-  cd linux-${_pkgver}
-
-  # security patches
-
-  # disable USER_NS for non-root users by default
-  patch -Np1 -i ../0001-add-sysctl-to-disallow-unprivileged-CLONE_NEWUSER-by.patch
-
-  # https://bugs.archlinux.org/task/56711
-  patch -Np1 -i ../0006-drm-i915-edp-Only-use-the-alternate-fixed-mode-if-it.patch
-
-  # add realtime patch
-  msg "applying patch-${_pkgver}-${_rtpatchver}.patch"
-  patch -Np1 -i ../patch-${_pkgver}-${_rtpatchver}.patch
-
-  # A patch to fix a problem that ought to be fixed in the NVIDIA source code.
-  # Stops X from hanging on NVIDIA cards
-  msg "fix-race-in-PRT-wait-for-completion-simple-wait-code_Nvidia-RT-160319.patch"
-  patch -Np1 -i ../fix-race-in-PRT-wait-for-completion-simple-wait-code_Nvidia-RT-160319.patch
-
-  msg "All patches have successfully been applied"
+  cd linux
 
   cp -Tf ../config .config
 
@@ -79,9 +43,6 @@ prepare() {
     sed -i "s|CONFIG_LOCALVERSION=.*|CONFIG_LOCALVERSION=\"-${pkgrel}${_kernelname}\"|g" ./.config
     sed -i "s|CONFIG_LOCALVERSION_AUTO=.*|CONFIG_LOCALVERSION_AUTO=n|" ./.config
   fi
-
-  # set extraversion to pkgrel
-#  sed -ri "s|^(EXTRAVERSION =).*|\1 -${pkgrel}|" Makefile
 
   # don't run depmod on 'make install'. We'll do this ourselves in packaging
   sed -i '2iexit 0' scripts/depmod.sh
@@ -102,7 +63,7 @@ prepare() {
 }
 
 build() {
-  cd linux-${_pkgver}
+  cd linux
 
   make ${MAKEFLAGS} LOCALVERSION= bzImage modules
 }
@@ -115,7 +76,7 @@ _package() {
   backup=("etc/mkinitcpio.d/${pkgbase}.preset")
   install="${pkgbase}.install"
 
-  cd linux-${_pkgver}
+  cd linux
 
   # get kernel version
   _kernver="$(make LOCALVERSION= kernelrelease)"
@@ -168,7 +129,7 @@ _package() {
 _package-headers() {
   pkgdesc="Header files and scripts for building modules for ${pkgbase/linux/Linux} kernel"
 
-  cd linux-${_pkgver}
+  cd linux
   local _builddir="${pkgdir}/usr/lib/modules/${_kernver}/build"
 
   install -Dt "${_builddir}" -m644 Makefile .config Module.symvers
@@ -235,7 +196,7 @@ _package-headers() {
 _package-docs() {
   pkgdesc="Kernel hackers manual - HTML documentation that comes with the ${pkgbase/linux/Linux} kernel"
 
-  cd linux-${_pkgver}
+  cd linux
   local _builddir="${pkgdir}/usr/lib/modules/${_kernver}/build"
 
   mkdir -p "${_builddir}"
