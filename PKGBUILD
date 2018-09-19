@@ -5,8 +5,8 @@
 # Contributor: Tobias Powalowski <tpowa@archlinux.org>
 # Contributor: Thomas Baechler <thomas@archlinux.org>
 
-pkgbase=linux-rt-lts-jailhouse
-pkgver=v4.14.63.rt40.jailhouse
+pkgbase=linux-rt-lts-jailhouse-no-retp
+pkgver=v4.14.63.rt40.jailhouse.no.retp
 pkgrel=1
 arch=('x86_64')
 license=('GPL2')
